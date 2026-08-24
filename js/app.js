@@ -52,7 +52,7 @@ function initMagnetic(){if(!finePointer||reducedMotion)return;document.querySele
 function cartCount(){return Math.max(0,Number(localStorage.getItem('wasm-cart-count')||0))}
 function setCartCount(count){localStorage.setItem('wasm-cart-count',String(Math.max(0,count)));document.dispatchEvent(new CustomEvent('wasm:cart-updated',{detail:{count:Math.max(0,count)}}))}
 
-function cartMarkup(){return `<div class="cart-overlay" id="cart-overlay" aria-hidden="true"><aside class="cart-drawer" role="dialog" aria-modal="true" aria-label="Shopping bag"><header class="cart-head"><h2>Your Bag</h2><button class="cart-close" aria-label="Close bag">×</button></header><div class="cart-body"></div><footer class="cart-foot"><div class="cart-subtotal"><span>Subtotal</span><strong>$0.00</strong></div><a class="button wide" href="checkout.html">Checkout</a></footer></aside></div>`}
+function cartMarkup(){return `<div class="cart-overlay" id="cart-overlay" aria-hidden="true"><aside class="cart-drawer" role="dialog" aria-modal="true" aria-label="Shopping bag"><header class="cart-head"><h2>Your Bag</h2><button class="cart-close" aria-label="Close bag"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="4" x2="16" y2="16"/><line x1="16" y1="4" x2="4" y2="16"/></svg></button></header><div class="cart-body"></div><footer class="cart-foot"><div class="cart-subtotal"><span>Subtotal</span><strong>$0.00</strong></div><a class="button wide" href="checkout.html">Checkout</a></footer></aside></div>`}
 
 function initCart(){
   document.body.insertAdjacentHTML('beforeend',cartMarkup());const overlay=document.querySelector('#cart-overlay'),body=overlay.querySelector('.cart-body'),subtotal=overlay.querySelector('.cart-subtotal strong');
@@ -158,8 +158,78 @@ const imageFor = slug => `assets/${slug}-main.jpg`;
 function renderProducts() {
   const products = getProducts();
   const featured = document.querySelector('#featured-products');
-  const homeImages = {form:'assets/form-home.jpg',frame:'assets/frame-home.jpg',core:'assets/core-home.jpg'};
-  if (featured) featured.innerHTML = products.slice(0,3).map(p => `<a class="featured-card" href="product.html"><div class="media"><img src="${homeImages[p.slug]}" alt="${p.name} phone case"><img class="alt-image" src="assets/${p.slug}-alt.jpg" alt="" aria-hidden="true"></div><div class="product-meta"><div><h3>${p.name}</h3><p>${p.slug==='form'?'Seamless silicone integration.':p.slug==='frame'?'Architectural edge protection.':'Maximum tactile response.'}</p></div><span>$${p.slug==='form'?'55':p.slug==='frame'?'65':'75'}</span></div></a>`).join('');
+  const homeImages = {form:'assets/form-home.jpg',frame:'assets/frame-home.jpg',core:'assets/core-home.jpg', silhouette:'assets/silhouette-main.jpg'};
+  
+  if (featured) {
+    featured.className = 'swiper featured-swiper';
+    const loopProducts = [...products, ...products, ...products];
+    const dummyImages = [
+      'assets/test-case-1.jpg',
+      'assets/test-case-2.jpg'
+    ];
+    featured.innerHTML = `
+      <div class="swiper-wrapper">
+        ${loopProducts.map((p, i) => `
+          <div class="swiper-slide">
+            <div class="featured-card">
+              <a href="product.html" class="media">
+                <img src="${dummyImages[i % dummyImages.length]}" alt="${p.name}">
+              </a>
+              <div class="product-meta">
+                <a href="product.html" class="title-link"><h3 class="truncate-title">${p.name}</h3></a>
+                <div class="meta-bottom">
+                  <span class="price-brand">
+                    <small>EGP</small> ${p.price * 50} 
+                  </span>
+                  <button class="cart-icon-btn" aria-label="Add to cart" onclick="event.preventDefault(); event.stopPropagation(); setCartCount(cartCount()+1); let t = document.querySelector('#toast'); if(!t){t=document.createElement('div'); t.id='toast'; document.body.appendChild(t);} t.textContent='${p.name} added to your bag'; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 1500);">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 8h11l1 12h-13zM9 9V6a3 3 0 0 1 6 0v3"/></svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+
+    setTimeout(() => {
+      try {
+        if (typeof Swiper !== 'undefined') {
+          const swiper = new Swiper('.featured-swiper', {
+            loop: true,
+            speed: 4000,
+            autoplay: {
+              delay: 0,
+              disableOnInteraction: false,
+              pauseOnMouseEnter: false // Never pause on hover
+            },
+            grabCursor: true,
+            slidesPerView: 1.35,
+            spaceBetween: 14,
+            breakpoints: {
+              560: { slidesPerView: 2.3, spaceBetween: 16 },
+              960: { slidesPerView: 3.5, spaceBetween: 20 },
+              1200: { slidesPerView: 4, spaceBetween: 24 }
+            }
+          });
+
+          // Pause ONLY on click-hold (mousedown / touchstart), resume on release
+          const el = document.querySelector('.featured-swiper');
+          if (el) {
+            el.addEventListener('mousedown', () => swiper.autoplay.stop());
+            el.addEventListener('touchstart', () => swiper.autoplay.stop(), { passive: true });
+            el.addEventListener('mouseup', () => swiper.autoplay.start());
+            el.addEventListener('mouseleave', () => swiper.autoplay.start());
+            el.addEventListener('touchend', () => swiper.autoplay.start());
+            el.addEventListener('touchcancel', () => swiper.autoplay.start());
+          }
+        }
+      } catch(e) {
+        console.error('Swiper failed to load:', e);
+      }
+    }, 100);
+  }
+
   const grid = document.querySelector('#product-grid');
   if (grid) grid.innerHTML = products.map(p => `<a class="product-card" href="product.html" data-price="${p.price}" data-name="${p.name}"><div class="media"><img src="${imageFor(p.slug)}" alt="${p.name} phone case"><img class="alt-image" src="assets/${p.slug}-alt.jpg" alt="" aria-hidden="true"></div><div class="product-meta"><div><h3>${p.name}</h3><p>${p.description}</p><div class="swatch-row">${p.colors.map(c=>`<i class="swatch-dot" style="background:${c}"></i>`).join('')}</div></div><span>$${p.price}</span></div></a>`).join('');
 }
@@ -178,7 +248,7 @@ function productInteractions() {
     const button=document.querySelector('#add-to-bag'),label=button.querySelector('.button-label')??button;setCartCount(cartCount()+1);updateBagCount();
     label.textContent='Added ✓';button.classList.add('is-confirmed');
     const toast = document.querySelector('#toast'); toast.textContent='WASM FORM added to your bag'; toast.classList.add('show');
-    setTimeout(()=>{toast.classList.remove('show');label.textContent='Add to bag';button.classList.remove('is-confirmed');document.dispatchEvent(new Event('wasm:open-cart'))},850);
+    setTimeout(()=>{toast.classList.remove('show');label.textContent='Add to bag';button.classList.remove('is-confirmed');},850);
   });
 }
 
